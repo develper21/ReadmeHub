@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { motion } from "framer-motion";
-import { Save, Loader2, Plus, AlertCircle } from "lucide-react";
+import { Save, Loader2, Plus, AlertCircle, Github, Link2, Unlink } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
@@ -8,52 +8,72 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import Navbar from "@/components/Navbar";
 import Footer from "@/components/Footer";
 import { useAuth } from "@/hooks/useAuth";
-import { supabase } from "@/integrations/supabase/client";
+import { api, GITHUB_CONNECT_URL, type Issue, type Notification } from "@/lib/api";
 import { useNavigate } from "react-router-dom";
 import { toast } from "sonner";
 
 const Settings = () => {
-  const { user, loading } = useAuth();
+  const { user, loading, refresh } = useAuth();
   const navigate = useNavigate();
   const [saving, setSaving] = useState(false);
-  const [profile, setProfile] = useState({ display_name: "", bio: "", github_username: "", avatar_url: "" });
-  const [issues, setIssues] = useState<any[]>([]);
+  const [profile, setProfile] = useState({ displayName: "", bio: "", githubUsername: "", avatarUrl: "" });
+  const [issues, setIssues] = useState<Issue[]>([]);
   const [newIssue, setNewIssue] = useState({ title: "", description: "", priority: "medium" });
 
   useEffect(() => {
     if (!loading && !user) navigate("/auth");
-  }, [user, loading]);
+  }, [user, loading, navigate]);
 
   useEffect(() => {
     if (!user) return;
-    const load = async () => {
-      const [pRes, iRes] = await Promise.all([
-        supabase.from("profiles").select("*").eq("user_id", user.id).maybeSingle(),
-        supabase.from("user_issues").select("*").eq("user_id", user.id).order("created_at", { ascending: false }),
-      ]);
-      if (pRes.data) setProfile({ display_name: pRes.data.display_name || "", bio: pRes.data.bio || "", github_username: pRes.data.github_username || "", avatar_url: pRes.data.avatar_url || "" });
-      if (iRes.data) setIssues(iRes.data);
-    };
-    load();
+    api.get<{ profile: { displayName: string; bio: string; githubUsername: string; avatarUrl: string } }>("/user/profile").then((d) => {
+      setProfile({
+        displayName: d.profile.displayName || "",
+        bio: d.profile.bio || "",
+        githubUsername: d.profile.githubUsername || "",
+        avatarUrl: d.profile.avatarUrl || "",
+      });
+    });
+    api.get<{ issues: Issue[] }>("/user/issues").then((d) => setIssues(d.issues));
   }, [user]);
 
   const handleSave = async () => {
-    if (!user) return;
     setSaving(true);
-    const { error } = await supabase.from("profiles").update(profile).eq("user_id", user.id);
-    setSaving(false);
-    if (error) toast.error(error.message, { position: "bottom-center" });
-    else toast.success("Profile updated!", { position: "bottom-center" });
+    try {
+      await api.put("/user/profile", {
+        displayName: profile.displayName,
+        bio: profile.bio,
+        githubUsername: profile.githubUsername,
+        avatarUrl: profile.avatarUrl,
+      });
+      toast.success("Profile updated!", { position: "bottom-center" });
+      refresh();
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : "Failed to save", { position: "bottom-center" });
+    } finally {
+      setSaving(false);
+    }
   };
 
   const handleSubmitIssue = async () => {
-    if (!user || !newIssue.title.trim()) return;
-    const { data, error } = await supabase.from("user_issues").insert({ ...newIssue, user_id: user.id }).select().single();
-    if (error) toast.error(error.message, { position: "bottom-center" });
-    else {
-      setIssues([data, ...issues]);
+    if (!newIssue.title.trim()) return;
+    try {
+      const d = await api.post<{ issue: Issue }>("/user/issues", newIssue);
+      setIssues([d.issue, ...issues]);
       setNewIssue({ title: "", description: "", priority: "medium" });
       toast.success("Issue submitted!", { position: "bottom-center" });
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : "Failed to submit", { position: "bottom-center" });
+    }
+  };
+
+  const handleDisconnectGitHub = async () => {
+    try {
+      await api.post("/github/disconnect");
+      toast.success("GitHub disconnected", { position: "bottom-center" });
+      refresh();
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : "Failed", { position: "bottom-center" });
     }
   };
 
@@ -68,6 +88,7 @@ const Settings = () => {
         <Tabs defaultValue="profile" className="w-full">
           <TabsList className="clay-sm mb-6 w-full sm:w-auto">
             <TabsTrigger value="profile">Profile</TabsTrigger>
+            <TabsTrigger value="github">GitHub</TabsTrigger>
             <TabsTrigger value="issues">Issues</TabsTrigger>
             <TabsTrigger value="notifications">Notifications</TabsTrigger>
           </TabsList>
@@ -76,7 +97,7 @@ const Settings = () => {
             <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="clay p-6 space-y-4">
               <div>
                 <label className="text-sm font-semibold text-foreground mb-1 block">Display Name</label>
-                <Input value={profile.display_name} onChange={(e) => setProfile({ ...profile, display_name: e.target.value })} className="clay-inset border-none" />
+                <Input value={profile.displayName} onChange={(e) => setProfile({ ...profile, displayName: e.target.value })} className="clay-inset border-none" />
               </div>
               <div>
                 <label className="text-sm font-semibold text-foreground mb-1 block">Bio</label>
@@ -84,16 +105,45 @@ const Settings = () => {
               </div>
               <div>
                 <label className="text-sm font-semibold text-foreground mb-1 block">GitHub Username</label>
-                <Input value={profile.github_username} onChange={(e) => setProfile({ ...profile, github_username: e.target.value })} className="clay-inset border-none" />
+                <Input value={profile.githubUsername} onChange={(e) => setProfile({ ...profile, githubUsername: e.target.value })} className="clay-inset border-none" />
               </div>
               <div>
                 <label className="text-sm font-semibold text-foreground mb-1 block">Avatar URL</label>
-                <Input value={profile.avatar_url} onChange={(e) => setProfile({ ...profile, avatar_url: e.target.value })} className="clay-inset border-none" />
+                <Input value={profile.avatarUrl} onChange={(e) => setProfile({ ...profile, avatarUrl: e.target.value })} className="clay-inset border-none" />
               </div>
               <Button variant="hero" onClick={handleSave} disabled={saving} className="gap-2">
                 {saving ? <Loader2 className="h-4 w-4 animate-spin" /> : <Save className="h-4 w-4" />}
                 Save Changes
               </Button>
+            </motion.div>
+          </TabsContent>
+
+          <TabsContent value="github">
+            <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="clay p-6 space-y-4">
+              <div className="flex items-center gap-3">
+                <div className="h-10 w-10 rounded-xl bg-hero flex items-center justify-center">
+                  <Github className="h-5 w-5 text-primary-foreground" />
+                </div>
+                <div>
+                  <h3 className="font-display font-bold text-foreground">GitHub Connection</h3>
+                  <p className="text-sm text-muted-foreground">
+                    {user.githubUsername ? `Connected as @${user.githubUsername}` : "Not connected"}
+                  </p>
+                </div>
+              </div>
+              <p className="text-sm text-muted-foreground">
+                Connecting GitHub lets the AI analyze your actual repositories — code structure, dependencies and
+                docs — to generate accurate READMEs. We request read-only access plus the ability to read your repos.
+              </p>
+              {user.githubUsername ? (
+                <Button variant="destructive" onClick={handleDisconnectGitHub} className="gap-2">
+                  <Unlink className="h-4 w-4" /> Disconnect GitHub
+                </Button>
+              ) : (
+                <Button variant="hero" onClick={() => (window.location.href = GITHUB_CONNECT_URL)} className="gap-2">
+                  <Link2 className="h-4 w-4" /> Connect GitHub
+                </Button>
+              )}
             </motion.div>
           </TabsContent>
 
@@ -129,7 +179,7 @@ const Settings = () => {
           </TabsContent>
 
           <TabsContent value="notifications">
-            <NotificationsTab userId={user.id} />
+            <NotificationsTab />
           </TabsContent>
         </Tabs>
       </div>
@@ -138,17 +188,15 @@ const Settings = () => {
   );
 };
 
-const NotificationsTab = ({ userId }: { userId: string }) => {
-  const [notifications, setNotifications] = useState<any[]>([]);
+const NotificationsTab = () => {
+  const [notifications, setNotifications] = useState<Notification[]>([]);
 
   useEffect(() => {
-    supabase.from("notifications").select("*").eq("user_id", userId).order("created_at", { ascending: false }).then(({ data }) => {
-      if (data) setNotifications(data);
-    });
-  }, [userId]);
+    api.get<{ notifications: Notification[] }>("/user/notifications").then((d) => setNotifications(d.notifications));
+  }, []);
 
   const markRead = async (id: string) => {
-    await supabase.from("notifications").update({ read: true }).eq("id", id);
+    await api.patch(`/user/notifications/${id}/read`);
     setNotifications((n) => n.map((x) => (x.id === id ? { ...x, read: true } : x)));
   };
 
