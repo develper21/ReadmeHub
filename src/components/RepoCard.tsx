@@ -2,19 +2,9 @@ import { motion } from "framer-motion";
 import { Star, GitFork, AlertCircle, Lock, Globe, ArrowRight } from "lucide-react";
 import { Button } from "@/components/ui/button";
 
-export interface Repo {
-  id: number;
-  name: string;
-  full_name: string;
-  description: string | null;
-  language: string | null;
-  stargazers_count: number;
-  forks_count: number;
-  open_issues_count: number;
-  private: boolean;
-  updated_at: string;
-  html_url: string;
-}
+import type { Repo } from "@/lib/api";
+
+export type { Repo };
 
 const langColors: Record<string, string> = {
   TypeScript: "hsl(210 80% 55%)",
@@ -85,20 +75,20 @@ const RepoCard = ({ repo, onGenerate, index }: RepoCardProps) => {
         )}
         <span className="flex items-center gap-1">
           <Star className="h-3.5 w-3.5" />
-          {repo.stargazers_count}
+          {repo.stargazersCount}
         </span>
         <span className="flex items-center gap-1">
           <GitFork className="h-3.5 w-3.5" />
-          {repo.forks_count}
+          {repo.forksCount}
         </span>
         <span className="flex items-center gap-1">
           <AlertCircle className="h-3.5 w-3.5" />
-          {repo.open_issues_count}
+          {repo.openIssuesCount}
         </span>
       </div>
 
       <div className="flex items-center justify-between mt-auto pt-2">
-        <span className="text-xs text-muted-foreground">Updated {timeAgo(repo.updated_at)}</span>
+        <span className="text-xs text-muted-foreground">Updated {timeAgo(repo.updatedAt)}</span>
         <Button
           variant="hero"
           size="sm"
