@@ -7,7 +7,9 @@ import { AuthProvider } from "@/hooks/useAuth";
 import Index from "./pages/Index";
 import Dashboard from "./pages/Dashboard";
 import Generate from "./pages/Generate";
+import Chat from "./pages/Chat";
 import Auth from "./pages/Auth";
+import AuthCallback from "./pages/AuthCallback";
 import Profile from "./pages/Profile";
 import Settings from "./pages/Settings";
 import Admin from "./pages/Admin";
@@ -26,8 +28,10 @@ const App = () => (
           <Routes>
             <Route path="/" element={<Index />} />
             <Route path="/auth" element={<Auth />} />
+            <Route path="/auth/callback" element={<AuthCallback />} />
             <Route path="/dashboard" element={<Dashboard />} />
             <Route path="/generate" element={<Generate />} />
+            <Route path="/chat" element={<Chat />} />
             <Route path="/profile" element={<Profile />} />
             <Route path="/settings" element={<Settings />} />
             <Route path="/admin" element={<Admin />} />
