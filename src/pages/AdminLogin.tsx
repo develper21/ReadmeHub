@@ -3,34 +3,32 @@ import { motion } from "framer-motion";
 import { Shield, Mail, Lock, Loader2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { supabase } from "@/integrations/supabase/client";
+import { api, type User } from "@/lib/api";
 import { useNavigate } from "react-router-dom";
 import { toast } from "sonner";
+import { useAuth } from "@/hooks/useAuth";
 
 const AdminLogin = () => {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [loading, setLoading] = useState(false);
   const navigate = useNavigate();
+  const { refresh } = useAuth();
 
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
     setLoading(true);
     try {
-      const { data, error } = await supabase.auth.signInWithPassword({ email, password });
-      if (error) throw error;
-
-      // Check admin role
-      const { data: role } = await supabase.from("user_roles").select("role").eq("user_id", data.user.id).eq("role", "admin").maybeSingle();
-      if (!role) {
-        await supabase.auth.signOut();
+      const data = await api.post<{ user: User }>("/auth/login", { email, password });
+      if (!data.user.isAdmin) {
+        await api.post("/auth/logout");
         throw new Error("Access denied. Admin privileges required.");
       }
-
+      await refresh();
       toast.success("Welcome, Admin!", { position: "bottom-center" });
       navigate("/admin");
-    } catch (err: any) {
-      toast.error(err.message, { position: "bottom-center" });
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : "Login failed", { position: "bottom-center" });
     } finally {
       setLoading(false);
     }
