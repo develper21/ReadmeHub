@@ -1,6 +1,6 @@
 import { Link, useLocation } from "react-router-dom";
 import { motion } from "framer-motion";
-import { FileText, Menu, X, User, Settings, LogOut, Shield } from "lucide-react";
+import { FileText, Menu, X, User, Settings, LogOut, Shield, Bot } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useState } from "react";
 import { useAuth } from "@/hooks/useAuth";
@@ -16,9 +16,10 @@ const Navbar = () => {
     { to: "/", label: "Home" },
     { to: "/dashboard", label: "Dashboard" },
     { to: "/generate", label: "Generate" },
+    { to: "/chat", label: "AI Chat" },
   ];
 
-  const initials = (user?.user_metadata?.full_name || user?.email || "U").slice(0, 2).toUpperCase();
+  const initials = ((user?.displayName || user?.email || "U") as string).slice(0, 2).toUpperCase();
 
   return (
     <motion.nav
