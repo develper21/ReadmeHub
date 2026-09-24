@@ -1,71 +1,88 @@
 import { useEffect, useState } from "react";
 import { motion } from "framer-motion";
-import { Users, FileText, AlertCircle, Bell, CreditCard, Shield, BarChart3, Send, Loader2 } from "lucide-react";
+import { Users, FileText, AlertCircle, Bell, CreditCard, Shield, BarChart3, Send, Loader2, Bot } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import Navbar from "@/components/Navbar";
 import { useAuth } from "@/hooks/useAuth";
-import { supabase } from "@/integrations/supabase/client";
+import { api, type Issue, type Plan, type User } from "@/lib/api";
 import { useNavigate } from "react-router-dom";
 import { toast } from "sonner";
+
+interface AdminReadme {
+  id: string;
+  repo_name: string;
+  repo_full_name: string | null;
+  technologies: string[];
+  model: string | null;
+  created_at: string;
+  email: string;
+}
+
+interface AdminStats {
+  users: number;
+  readmes: number;
+  openIssues: number;
+  activePlans: number;
+  chats: number;
+}
 
 const Admin = () => {
   const { user, loading, isAdmin } = useAuth();
   const navigate = useNavigate();
-  const [stats, setStats] = useState({ users: 0, readmes: 0, issues: 0, notifications: 0 });
-  const [users, setUsers] = useState<any[]>([]);
-  const [readmes, setReadmes] = useState<any[]>([]);
-  const [issues, setIssues] = useState<any[]>([]);
-  const [plans, setPlans] = useState<any[]>([]);
+  const [stats, setStats] = useState<AdminStats | null>(null);
+  const [users, setUsers] = useState<(User & { is_admin?: number })[]>([]);
+  const [readmes, setReadmes] = useState<AdminReadme[]>([]);
+  const [issues, setIssues] = useState<Issue[]>([]);
+  const [plans, setPlans] = useState<Plan[]>([]);
   const [notifForm, setNotifForm] = useState({ userId: "", title: "", message: "", type: "info" });
   const [sendingNotif, setSendingNotif] = useState(false);
 
   useEffect(() => {
     if (!loading && (!user || !isAdmin)) navigate("/admin-login");
-  }, [user, loading, isAdmin]);
+  }, [user, loading, isAdmin, navigate]);
 
   useEffect(() => {
     if (!user || !isAdmin) return;
-    const fetchAll = async () => {
-      const [profilesRes, readmesRes, issuesRes, plansRes] = await Promise.all([
-        supabase.from("profiles").select("*").order("created_at", { ascending: false }),
-        supabase.from("generated_readmes").select("*").order("created_at", { ascending: false }).limit(50),
-        supabase.from("user_issues").select("*").order("created_at", { ascending: false }),
-        supabase.from("plans").select("*"),
-      ]);
-      const u = profilesRes.data || [];
-      const r = readmesRes.data || [];
-      const i = issuesRes.data || [];
-      setUsers(u);
-      setReadmes(r);
-      setIssues(i);
-      setPlans(plansRes.data || []);
-      setStats({ users: u.length, readmes: r.length, issues: i.filter((x: any) => x.status === "open").length, notifications: 0 });
+    const load = async () => {
+      try {
+        const [statsRes, usersRes, readmesRes, issuesRes, plansRes] = await Promise.all([
+          api.get<{ stats: AdminStats }>("/admin/stats"),
+          api.get<{ users: User[] }>("/admin/users"),
+          api.get<{ readmes: AdminReadme[] }>("/admin/readmes"),
+          api.get<{ issues: Issue[] }>("/admin/issues"),
+          api.get<{ plans: Plan[] }>("/user/plans"),
+        ]);
+        setStats(statsRes.stats);
+        setUsers(usersRes.users);
+        setReadmes(readmesRes.readmes);
+        setIssues(issuesRes.issues);
+        setPlans(plansRes.plans);
+      } catch (err) {
+        toast.error(err instanceof Error ? err.message : "Failed to load admin data", { position: "bottom-center" });
+      }
     };
-    fetchAll();
+    load();
   }, [user, isAdmin]);
 
   const sendNotification = async () => {
     if (!notifForm.title || !notifForm.message) return;
     setSendingNotif(true);
-
-    if (notifForm.userId) {
-      await supabase.from("notifications").insert({ user_id: notifForm.userId, title: notifForm.title, message: notifForm.message, type: notifForm.type });
-    } else {
-      // Send to all users
-      const inserts = users.map((u) => ({ user_id: u.user_id, title: notifForm.title, message: notifForm.message, type: notifForm.type }));
-      if (inserts.length > 0) await supabase.from("notifications").insert(inserts);
+    try {
+      const d = await api.post<{ sent: number }>("/admin/notifications", notifForm);
+      toast.success(`Notification sent to ${d.sent} user(s)!`, { position: "bottom-center" });
+      setNotifForm({ userId: "", title: "", message: "", type: "info" });
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : "Failed to send", { position: "bottom-center" });
+    } finally {
+      setSendingNotif(false);
     }
-
-    toast.success("Notification sent!", { position: "bottom-center" });
-    setNotifForm({ userId: "", title: "", message: "", type: "info" });
-    setSendingNotif(false);
   };
 
   const updateIssueStatus = async (id: string, status: string) => {
-    await supabase.from("user_issues").update({ status }).eq("id", id);
+    await api.patch(`/admin/issues/${id}`, { status });
     setIssues((prev) => prev.map((i) => (i.id === id ? { ...i, status } : i)));
     toast.success(`Issue marked as ${status}`, { position: "bottom-center" });
   };
@@ -84,15 +101,16 @@ const Admin = () => {
         </div>
 
         {/* Stats */}
-        <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
+        <div className="grid grid-cols-2 md:grid-cols-5 gap-4 mb-6">
           {[
-            { icon: Users, value: stats.users, label: "Total Users", color: "bg-hero" },
-            { icon: FileText, value: stats.readmes, label: "READMEs Generated", color: "bg-hero" },
-            { icon: AlertCircle, value: stats.issues, label: "Open Issues", color: "bg-accent-gradient" },
-            { icon: CreditCard, value: plans.length, label: "Active Plans", color: "bg-hero" },
+            { icon: Users, value: stats?.users ?? "…", label: "Total Users" },
+            { icon: FileText, value: stats?.readmes ?? "…", label: "READMEs" },
+            { icon: Bot, value: stats?.chats ?? "…", label: "Chat Messages" },
+            { icon: AlertCircle, value: stats?.openIssues ?? "…", label: "Open Issues" },
+            { icon: CreditCard, value: stats?.activePlans ?? "…", label: "Active Plans" },
           ].map((s) => (
             <motion.div key={s.label} initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} className="clay p-4 flex items-center gap-3">
-              <div className={`h-10 w-10 rounded-xl ${s.color} flex items-center justify-center flex-shrink-0`}>
+              <div className="h-10 w-10 rounded-xl bg-hero flex items-center justify-center flex-shrink-0">
                 <s.icon className="h-5 w-5 text-primary-foreground" />
               </div>
               <div>
@@ -118,15 +136,23 @@ const Admin = () => {
               <table className="w-full text-sm">
                 <thead><tr className="border-b border-border">
                   <th className="text-left p-3 text-muted-foreground font-semibold">User</th>
+                  <th className="text-left p-3 text-muted-foreground font-semibold">Email</th>
                   <th className="text-left p-3 text-muted-foreground font-semibold">GitHub</th>
+                  <th className="text-left p-3 text-muted-foreground font-semibold">Role</th>
                   <th className="text-left p-3 text-muted-foreground font-semibold">Joined</th>
                 </tr></thead>
                 <tbody>
                   {users.map((u) => (
                     <tr key={u.id} className="border-b border-border/50 hover:bg-muted/30">
-                      <td className="p-3 font-medium text-foreground">{u.display_name || "—"}</td>
-                      <td className="p-3 text-muted-foreground">{u.github_username || "—"}</td>
-                      <td className="p-3 text-muted-foreground">{new Date(u.created_at).toLocaleDateString()}</td>
+                      <td className="p-3 font-medium text-foreground">{u.displayName || "—"}</td>
+                      <td className="p-3 text-muted-foreground">{u.email}</td>
+                      <td className="p-3 text-muted-foreground">{u.githubUsername || "—"}</td>
+                      <td className="p-3">
+                        <span className={`text-xs px-2 py-0.5 rounded-full ${u.isAdmin ? "bg-hero text-primary-foreground" : "bg-muted text-muted-foreground"}`}>
+                          {u.isAdmin ? "admin" : "user"}
+                        </span>
+                      </td>
+                      <td className="p-3 text-muted-foreground">{new Date(u.createdAt).toLocaleDateString()}</td>
                     </tr>
                   ))}
                 </tbody>
@@ -142,6 +168,7 @@ const Admin = () => {
                     <h4 className="font-display font-bold text-foreground">{r.repo_name}</h4>
                     <span className="text-xs text-muted-foreground">{new Date(r.created_at).toLocaleDateString()}</span>
                   </div>
+                  <p className="text-xs text-muted-foreground mt-1">by {r.email} • via {r.model || "unknown"}</p>
                   {r.technologies?.length > 0 && (
                     <div className="flex gap-1 mt-2 flex-wrap">{r.technologies.map((t: string) => <span key={t} className="text-xs px-2 py-0.5 rounded-full bg-muted text-muted-foreground">{t}</span>)}</div>
                   )}
@@ -199,10 +226,10 @@ const Admin = () => {
                   <h3 className="font-display font-bold text-xl text-foreground">{plan.name}</h3>
                   <p className="text-sm text-muted-foreground mt-1">{plan.description}</p>
                   <div className="text-3xl font-display font-black text-gradient mt-3">
-                    ${plan.price_monthly}<span className="text-sm font-normal text-muted-foreground">/mo</span>
+                    ${plan.priceMonthly}<span className="text-sm font-normal text-muted-foreground">/mo</span>
                   </div>
                   <ul className="mt-3 space-y-1">
-                    {(plan.features as string[])?.map((f: string, i: number) => (
+                    {plan.features.map((f, i) => (
                       <li key={i} className="text-sm text-muted-foreground">✓ {f}</li>
                     ))}
                   </ul>
@@ -216,7 +243,7 @@ const Admin = () => {
               <BarChart3 className="h-12 w-12 mx-auto text-muted-foreground mb-3" />
               <h3 className="font-display font-bold text-foreground">Analytics Dashboard</h3>
               <p className="text-sm text-muted-foreground mt-1">
-                {stats.users} users • {stats.readmes} READMEs generated • {stats.issues} open issues
+                {stats?.users ?? 0} users • {stats?.readmes ?? 0} READMEs generated • {stats?.chats ?? 0} chat messages • {stats?.openIssues ?? 0} open issues
               </p>
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mt-6">
                 <div className="clay-sm p-4">
