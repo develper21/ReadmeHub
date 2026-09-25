@@ -1,0 +1,57 @@
+# ═══════════════════════════════════════════════════════════════════════════
+# ReadMeAI — Render Blueprint (backend API)
+# Deploys the Express + MongoDB backend as a Render Web Service.
+#
+# How to use:
+#   1. Push this repo to GitHub
+#   2. Render Dashboard → New → Blueprint → select this repo
+#   3. Render reads render.yaml and creates the service
+#   4. Set the env vars marked `sync: false` in the Render dashboard
+#      (OPENAI_API_KEY, GITHUB_CLIENT_ID/SECRET, JWT_SECRET)
+#   5. After first deploy, add a Render Cron Job or run once:
+#        npm run seed   (optional — demo data)
+#
+# MongoDB: use a free MongoDB Atlas cluster (recommended) and paste its
+# connection string into MONGO_URI, or add a Render MongoDB-like add-on.
+# ═══════════════════════════════════════════════════════════════════════════
+
+services:
+  - type: web
+    name: readmeai-api
+    runtime: node
+    plan: free
+    rootDir: server
+    # --include=dev is a safety net: when NODE_ENV=production npm skips
+    # devDependencies, but typescript/@types/tsx live in `dependencies`
+    # so the build works either way.
+    buildCommand: npm install --include=dev; npm run build
+    startCommand: npm start
+    healthCheckPath: /api/health
+    autoDeploy: true
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: NODE_VERSION
+        value: "20"
+      - key: PORT
+        value: 4000
+      - key: MONGO_URI
+        sync: false      # e.g. mongodb+srv://user:pass@cluster0.xxxxx.mongodb.net/readmeai
+      - key: CLIENT_ORIGIN
+        sync: false      # e.g. https://readmeai.netlify.app (your Netlify site URL)
+      - key: JWT_SECRET
+        generateValue: true   # Render generates a strong random secret
+      - key: OPENAI_API_KEY
+        sync: false      # https://platform.openai.com/api-keys
+      - key: OPENAI_MODEL
+        value: gpt-4o-mini
+      - key: GITHUB_CLIENT_ID
+        sync: false      # GitHub OAuth App credentials
+      - key: GITHUB_CLIENT_SECRET
+        sync: false
+      - key: GITHUB_TOKEN
+        sync: false      # optional: public-repo analysis token
+      - key: ADMIN_EMAIL
+        sync: false      # bootstrap admin (remove after first run)
+      - key: ADMIN_PASSWORD
+        sync: false

@@ -1,0 +1,55 @@
+# ═══════════════════════════════════════════════════════════════════════════
+# ReadMeAI — Netlify configuration (frontend)
+# Deploys the Vite + React SPA on Netlify.
+#
+# How to use:
+#   1. Push this repo to GitHub
+#   2. Netlify → Add new site → Import an existing project → select repo
+#   3. Netlify reads netlify.toml automatically (build command + publish dir)
+#   4. IMPORTANT: add the VITE_API_URL environment variable in
+#      Site settings → Environment variables, pointing to your Render API:
+#        VITE_API_URL = https://readmeai-api.onrender.com
+#      (Leave it empty only if you proxy /api to the backend another way.)
+#   5. In Render, set CLIENT_ORIGIN to this Netlify site URL so CORS +
+#      OAuth cookies work across the two domains.
+# ═══════════════════════════════════════════════════════════════════════════
+
+[build]
+  base = "."
+  command = "npm run build"
+  publish = "dist"
+
+[build.environment]
+  NODE_VERSION = "20"
+
+# SPA fallback: serve index.html for all non-file routes so React Router
+# handles /dashboard, /generate, /auth/callback, etc.
+[[redirects]]
+  from = "/*"
+  to = "/index.html"
+  status = 200
+
+# ── Optional: same-origin API proxy (alternative to VITE_API_URL) ──────────
+# Uncomment the block below to route /api/* to your Render backend so the
+# frontend can keep using same-origin cookies (no third-party cookie issues).
+#
+# [[redirects]]
+#   from = "/api/*"
+#   to = "https://readmeai-api.onrender.com/api/:splat"
+#   status = 200
+#   force = true
+#   headers = { X-Forwarded-Host = "readmeai.netlify.app" }
+
+# Long-term caching for hashed build assets
+[[headers]]
+  for = "/assets/*"
+  [headers.values]
+    Cache-Control = "public, max-age=31536000, immutable"
+
+# Basic security headers
+[[headers]]
+  for = "/*"
+  [headers.values]
+    X-Frame-Options = "DENY"
+    X-Content-Type-Options = "nosniff"
+    Referrer-Policy = "strict-origin-when-cross-origin"

@@ -1,39 +1,53 @@
 /**
- * Google Gemini AI service (REST, no SDK needed).
+ * OpenAI AI service (REST, no SDK needed).
  * - generateReadme: professional README.md generation
  * - chat: conversational README assistant (used by the Chat page)
- * Both fall back to deterministic templates when GEMINI_API_KEY is absent.
+ * Both fall back to deterministic templates when OPENAI_API_KEY is absent.
  */
-import type { ChatMessage, RepoContext, TechStack, GeneratedReadme } from "./readme-types.js";
+import type { ChatMessage, RepoContext, GeneratedReadme } from "./readme-types.js";
 
-const GEMINI_URL = "https://generativelanguage.googleapis.com/v1beta/models";
-const MODEL = process.env.GEMINI_MODEL || "gemini-2.0-flash";
+const OPENAI_URL = "https://api.openai.com/v1/chat/completions";
+const MODEL = process.env.OPENAI_MODEL || "gpt-4o-mini";
 
-export const aiConfigured = () => Boolean(process.env.GEMINI_API_KEY);
+export const aiConfigured = () => Boolean(process.env.OPENAI_API_KEY);
 
-async function geminiChat(systemPrompt: string, userPrompt: string, maxTokens = 4096): Promise<string | null> {
-  const key = process.env.GEMINI_API_KEY;
+async function openaiChat(
+  systemPrompt: string,
+  userPrompt: string,
+  maxTokens = 4096
+): Promise<string | null> {
+  const key = process.env.OPENAI_API_KEY;
   if (!key) return null;
 
-  const res = await fetch(`${GEMINI_URL}/${MODEL}:generateContent?key=${key}`, {
+  const res = await fetch(OPENAI_URL, {
     method: "POST",
-    headers: { "Content-Type": "application/json" },
+    headers: {
+      Authorization: `Bearer ${key}`,
+      "Content-Type": "application/json",
+    },
     body: JSON.stringify({
-      systemInstruction: { parts: [{ text: systemPrompt }] },
-      contents: [{ role: "user", parts: [{ text: userPrompt }] }],
-      generationConfig: { temperature: 0.7, maxOutputTokens: maxTokens },
+      model: MODEL,
+      messages: [
+        { role: "system", content: systemPrompt },
+        { role: "user", content: userPrompt },
+      ],
+      temperature: 0.7,
+      max_tokens: maxTokens,
     }),
   });
 
   if (!res.ok) {
     const text = await res.text().catch(() => "");
-    throw Object.assign(new Error(`Gemini API error ${res.status}: ${text.slice(0, 300)}`), { status: 502 });
+    throw Object.assign(
+      new Error(`OpenAI API error ${res.status}: ${text.slice(0, 300)}`),
+      { status: 502 }
+    );
   }
 
   const data = (await res.json()) as {
-    candidates?: { content?: { parts?: { text?: string }[] } }[];
+    choices?: { message?: { content?: string } }[];
   };
-  return data.candidates?.[0]?.content?.parts?.map((p) => p.text || "").join("") ?? null;
+  return data.choices?.[0]?.message?.content ?? null;
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -69,23 +83,45 @@ export function detectTechnologies(ctx: RepoContext): string[] {
 
   const files = ctx.files ?? [];
   const paths = files.map((f) => f.path.toLowerCase());
-  const has = (suffix: string) => paths.some((p) => p.endsWith(suffix) || p.includes(`/${suffix}`));
-  const contents = files.map((f) => f.content).join("\n").slice(0, 200_000);
+  const has = (suffix: string) =>
+    paths.some((p) => p.endsWith(suffix) || p.includes(`/${suffix}`));
+  const contents = files
+    .map((f) => f.content)
+    .join("\n")
+    .slice(0, 200_000);
 
   if (has("package.json")) {
     add("Node.js");
     try {
-      const pkg = JSON.parse(files.find((f) => f.path.endsWith("package.json"))!.content);
+      const pkg = JSON.parse(
+        files.find((f) => f.path.endsWith("package.json"))!.content
+      );
       const deps = { ...pkg.dependencies, ...pkg.devDependencies };
       const map: Record<string, string> = {
-        react: "React", "react-dom": "React", next: "Next.js", vue: "Vue.js", svelte: "Svelte",
-        "@angular/core": "Angular", express: "Express", fastify: "Fastify", nestjs: "NestJS",
-        typescript: "TypeScript", tailwindcss: "Tailwind CSS", prisma: "Prisma",
-        "better-sqlite3": "SQLite", mongoose: "MongoDB", "react-native": "React Native",
-        electron: "Electron", vite: "Vite", jest: "Jest", vitest: "Vitest",
+        react: "React",
+        "react-dom": "React",
+        next: "Next.js",
+        vue: "Vue.js",
+        svelte: "Svelte",
+        "@angular/core": "Angular",
+        express: "Express",
+        fastify: "Fastify",
+        nestjs: "NestJS",
+        typescript: "TypeScript",
+        tailwindcss: "Tailwind CSS",
+        prisma: "Prisma",
+        "better-sqlite3": "SQLite",
+        mongoose: "MongoDB",
+        "react-native": "React Native",
+        electron: "Electron",
+        vite: "Vite",
+        jest: "Jest",
+        vitest: "Vitest",
       };
       for (const [dep, label] of Object.entries(map)) if (deps[dep]) add(label);
-    } catch { /* ignore malformed package.json */ }
+    } catch {
+      /* ignore malformed package.json */
+    }
   }
   if (has("requirements.txt") || has("pyproject.toml")) {
     add("Python");
@@ -107,22 +143,49 @@ export function detectTechnologies(ctx: RepoContext): string[] {
 
 function badgeLine(tech: string[]): string {
   const logoMap: Record<string, string> = {
-    React: "react", "Next.js": "nextdotjs", Vue: "vuedotjs", Svelte: "svelte", Angular: "angular",
-    Express: "express", TypeScript: "typescript", JavaScript: "javascript", "Node.js": "nodedotjs",
-    Python: "python", Django: "django", Flask: "flask", FastAPI: "fastapi", Rust: "rust", Go: "go",
-    Java: "openjdk", PHP: "php", Ruby: "ruby", Docker: "docker", "Docker Compose": "docker",
-    SQLite: "sqlite", Prisma: "prisma", MongoDB: "mongodb", PostgreSQL: "postgresql",
-    MySQL: "mysql", "Tailwind CSS": "tailwindcss", Vite: "vite", Electron: "electron",
-    "React Native": "react", Kotlin: "kotlin", Swift: "swift", Dart: "dart", Flutter: "flutter",
+    React: "react",
+    "Next.js": "nextdotjs",
+    Vue: "vuedotjs",
+    Svelte: "svelte",
+    Angular: "angular",
+    Express: "express",
+    TypeScript: "typescript",
+    JavaScript: "javascript",
+    "Node.js": "nodedotjs",
+    Python: "python",
+    Django: "django",
+    Flask: "flask",
+    FastAPI: "fastapi",
+    Rust: "rust",
+    Go: "go",
+    Java: "openjdk",
+    PHP: "php",
+    Ruby: "ruby",
+    Docker: "docker",
+    "Docker Compose": "docker",
+    SQLite: "sqlite",
+    Prisma: "prisma",
+    MongoDB: "mongodb",
+    PostgreSQL: "postgresql",
+    MySQL: "mysql",
+    "Tailwind CSS": "tailwindcss",
+    Vite: "vite",
+    Electron: "electron",
+    "React Native": "react",
+    Kotlin: "kotlin",
+    Swift: "swift",
+    Dart: "dart",
+    Flutter: "flutter",
   };
   return tech
     .slice(0, 7)
     .map((t) => {
       const slug = logoMap[t] || "";
-      const id = t.toLowerCase().replace(/[^a-z0-9]/g, "");
       const color = "20232A";
       const logoPart = slug ? `&logo=${slug}&logoColor=white` : "";
-      return `![${t}](https://img.shields.io/badge/${encodeURIComponent(t)}-${color}?style=for-the-badge${logoPart})`;
+      return `![${t}](https://img.shields.io/badge/${encodeURIComponent(
+        t
+      )}-${color}?style=for-the-badge${logoPart})`;
     })
     .join(" ");
 }
@@ -131,19 +194,29 @@ function treeBlock(ctx: RepoContext): string {
   if (ctx.fileTree?.length) {
     return "```\n" + ctx.fileTree.slice(0, 30).join("\n") + "\n```";
   }
-  return "```\n" + `${ctx.name}/\n├── src/\n│   ├── components/\n│   ├── pages/\n│   └── utils/\n├── public/\n├── package.json\n└── README.md` + "\n```";
+  return (
+    "```\n" +
+    `${ctx.name}/\n├── src/\n│   ├── components/\n│   ├── pages/\n│   └── utils/\n├── public/\n├── package.json\n└── README.md` +
+    "\n```"
+  );
 }
 
 /** Deterministic fallback README using the same professional format spec. */
-export function fallbackReadme(ctx: RepoContext, techInput = "", author = "the author"): GeneratedReadme {
+export function fallbackReadme(
+  ctx: RepoContext,
+  techInput = "",
+  author = "the author"
+): GeneratedReadme {
   const tech = ctx.detectedTech?.length
     ? ctx.detectedTech
     : detectTechnologies(ctx).length
       ? detectTechnologies(ctx)
-      : techInput.split(",").map((t) => t.trim()).filter(Boolean);
+      : techInput
+          .split(",")
+          .map((t) => t.trim())
+          .filter(Boolean);
 
-  const description =
-    ctx.description || "A project built with modern technologies.";
+  const description = ctx.description || "A project built with modern technologies.";
   const license = ctx.license || "MIT";
 
   const configTable = tech.includes("Node.js")
@@ -151,7 +224,9 @@ export function fallbackReadme(ctx: RepoContext, techInput = "", author = "the a
     : `| Variable | Description | Default |\n|----------|-------------|---------|\n| \`ENV\` | Runtime environment | \`development\` |`;
 
   const runCmd = tech.includes("Python") ? "python main.py" : "npm run dev";
-  const installCmd = tech.includes("Python") ? "pip install -r requirements.txt" : "npm install";
+  const installCmd = tech.includes("Python")
+    ? "pip install -r requirements.txt"
+    : "npm install";
 
   const readme = `# 🚀 ${ctx.name}
 
@@ -239,7 +314,7 @@ Made with ❤️ by ${author}`;
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
-// README generation via Gemini
+// README generation via OpenAI
 // ─────────────────────────────────────────────────────────────────────────────
 export async function generateReadmeWithAI(
   ctx: RepoContext,
@@ -247,7 +322,12 @@ export async function generateReadmeWithAI(
   author = "the author"
 ): Promise<GeneratedReadme> {
   const detected = detectTechnologies(ctx);
-  const technologies = detected.length ? detected : techInput.split(",").map((t) => t.trim()).filter(Boolean);
+  const technologies = detected.length
+    ? detected
+    : techInput
+        .split(",")
+        .map((t) => t.trim())
+        .filter(Boolean);
 
   const repoFacts = [
     `Project name: ${ctx.name}`,
@@ -271,10 +351,15 @@ export async function generateReadmeWithAI(
 
   const userPrompt = `Generate a complete professional README.md for this project.\n\nPROJECT CONTEXT:\n${repoFacts}\n\n${README_FORMAT_SPEC}`;
 
-  const ai = await geminiChat(
-    "You are an expert technical writer who produces polished, professional GitHub README.md files.",
-    userPrompt
-  );
+  let ai: string | null = null;
+  try {
+    ai = await openaiChat(
+      "You are an expert technical writer who produces polished, professional GitHub README.md files.",
+      userPrompt
+    );
+  } catch (err) {
+    console.error("[ai] OpenAI generation failed, using fallback:", (err as Error).message);
+  }
 
   if (ai && ai.trim().length > 200) {
     return { readme: ai.trim(), model: MODEL, technologies };
@@ -291,7 +376,8 @@ export async function chatWithAI(
   messages: ChatMessage[],
   opts: { repoName?: string; repoContext?: RepoContext } = {}
 ): Promise<{ reply: string; model: string }> {
-  const lastUser = [...messages].reverse().find((m) => m.role === "user")?.content ?? "";
+  const lastUser =
+    [...messages].reverse().find((m) => m.role === "user")?.content ?? "";
 
   const systemPrompt = `You are "ReadMeAI Assistant" — an expert documentation helper inside a README generator app.
 You help users write, improve and fix README.md files and answer questions about documentation best practices.
@@ -300,10 +386,17 @@ ${opts.repoName ? `The user is currently working on a project called "${opts.rep
 ${opts.repoContext ? `Project context you may use:\n${JSON.stringify({ name: opts.repoContext.name, description: opts.repoContext.description, language: opts.repoContext.language, detectedTech: opts.repoContext.detectedTech }, null, 0)}` : ""}
 Be concise, friendly and practical. Format answers in Markdown.`;
 
-  const ai = await geminiChat(
-    systemPrompt,
-    messages.slice(-12).map((m) => `${m.role === "user" ? "User" : "Assistant"}: ${m.content}`).join("\n\n")
-  );
+  const transcript = messages
+    .slice(-12)
+    .map((m) => `${m.role === "user" ? "User" : "Assistant"}: ${m.content}`)
+    .join("\n\n");
+
+  let ai: string | null = null;
+  try {
+    ai = await openaiChat(systemPrompt, transcript);
+  } catch (err) {
+    console.error("[ai] OpenAI chat failed, using offline reply:", (err as Error).message);
+  }
 
   if (ai && ai.trim()) {
     return { reply: ai.trim(), model: MODEL };

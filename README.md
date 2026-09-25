@@ -1,222 +1,240 @@
 # 🚀 ReadMeAI — AI-Powered README Generator
 
+![Node.js](https://img.shields.io/badge/Node.js-20-339933?style=for-the-badge&logo=nodedotjs&logoColor=white)
+![Express](https://img.shields.io/badge/Express-4-000000?style=for-the-badge&logo=express&logoColor=white)
+![MongoDB](https://img.shields.io/badge/MongoDB-8-47A248?style=for-the-badge&logo=mongodb&logoColor=white)
 ![React](https://img.shields.io/badge/React-18-20232A?style=for-the-badge&logo=react&logoColor=61DAFB)
 ![TypeScript](https://img.shields.io/badge/TypeScript-5-3178C6?style=for-the-badge&logo=typescript&logoColor=white)
-![Express](https://img.shields.io/badge/Express-4-000000?style=for-the-badge&logo=express&logoColor=white)
-![MongoDB](https://img.shields.io/badge/MongoDB-7-47A248?style=for-the-badge&logo=mongodb&logoColor=white)
-![Vite](https://img.shields.io/badge/Vite-5-646CFF?style=for-the-badge&logo=vite&logoColor=white)
-![Tailwind](https://img.shields.io/badge/Tailwind-3-38B2AC?style=for-the-badge&logo=tailwind-css&logoColor=white)
+![OpenAI](https://img.shields.io/badge/OpenAI-GPT--4o--mini-412991?style=for-the-badge&logo=openai&logoColor=white)
 
-> **Connect GitHub → AI analyzes your code → professional README in seconds.**
+> Generate professional, AI-powered README.md files for any GitHub repository — in seconds.
 
-ReadMeAI is a full-stack web app that generates polished, professional `README.md`
-files for any project. Connect your GitHub account (OAuth) or enter details
-manually, and the AI analyzes your repository's real code, structure and
-dependencies to produce a consistent, professional README — with an integrated
-AI chat to refine it further. All user data is stored in MongoDB.
+**ReadMeAI** connects to your GitHub, analyzes your actual code (structure, dependencies, configs), and uses OpenAI to produce a polished, professional README with badges, installation guides, usage examples, and more. Includes an AI chat assistant to refine any README conversationally.
 
 ## ✨ Features
 
-- 🤖 **AI-Powered Generation** — Google Gemini writes intelligent, context-aware READMEs
-- 🔍 **Deep Repository Analysis** — fetches the repo tree, curates the 20 most important files and reads them (manifests, configs, source)
-- 🧠 **Smart Tech Detection** — detects languages, frameworks and tools from `package.json`, `requirements.txt`, `Cargo.toml` and more
-- 📐 **Consistent Professional Format** — badges, about, features, tech stack, installation, usage, configuration table, project structure, contributing, license
-- 💬 **AI Chat Assistant** — dedicated chat page + inline "refine README" drawer; chat remembers your project context
-- 🔐 **GitHub OAuth Connect** — fetch your repos (public + private) with minimal scopes
-- 🛡️ **Secure by Default** — bcrypt hashing, JWT httpOnly cookie sessions, AES-256-GCM encrypted GitHub tokens, rate limiting
-- 🍃 **MongoDB Persistence** — users, README history, chat sessions, contributions, notifications, issues, plans
-- 🪄 **Mock Data Seeding** — one command fills the DB with realistic demo data for the whole frontend
-- 🧑‍💼 **Admin Dashboard** — users, READMEs, chat usage, issue triage, broadcast notifications, plans
-- 📥 **Export Anywhere** — download `.md` or copy to clipboard, with live Markdown preview
-- 🔁 **Offline Fallback** — no AI key? A deterministic template still produces the same professional format
+- 🤖 **OpenAI-powered generation** — `gpt-4o-mini` by default, any OpenAI model via `OPENAI_MODEL`
+- 🔍 **Deep repo analysis** — fetches up to 20 key files (manifests, configs, source) + full directory tree from GitHub
+- 🎨 **Professional format, guaranteed** — badges → tagline → about → features → tech stack → installation → usage → configuration → structure → contributing → license, even in offline fallback mode
+- 💬 **AI chat assistant** — dedicated chat page + inline drawer on the Generate page to refine READMEs conversationally
+- 🐙 **GitHub OAuth** — sign in with GitHub or connect later; repos fetched from the GitHub API, tokens stored AES-256-GCM encrypted
+- 📥 **Export** — download as `README.md` or copy to clipboard, with live Markdown preview
+- 📊 **Profile dashboard** — contribution heatmap, README history, GitHub stats
+- 🛡️ **Admin panel** — users, READMEs, issues, broadcast notifications, plans
+- 🔐 **Secure by default** — JWT httpOnly cookie sessions, bcrypt password hashing, CORS allow-list, rate limiting, Zod validation
+- ⚡ **Graceful degradation** — no OpenAI key? A deterministic template generates the same professional format
 
 ## 🛠️ Tech Stack
 
-- **Frontend:** React 18, TypeScript, Vite, Tailwind CSS, shadcn/ui, Framer Motion
-- **Backend:** Node.js, Express 4, TypeScript, Mongoose
-- **Database:** MongoDB 7 (local docker or Atlas)
-- **AI:** Google Gemini (`gemini-2.0-flash`) via REST
-- **Integrations:** GitHub REST API + GitHub OAuth App
+| Layer | Technology |
+|-------|------------|
+| Frontend | React 18, TypeScript, Vite, Tailwind CSS, shadcn/ui, Framer Motion, React Router |
+| Backend | Node.js 20, Express 4, TypeScript (ESM) |
+| Database | MongoDB (Mongoose 8) |
+| AI | OpenAI Chat Completions REST API (`gpt-4o-mini`) |
+| Auth | JWT (httpOnly cookies), bcrypt, GitHub OAuth |
+| Validation | Zod schemas on every write endpoint |
+| Deploy | Render (API) + Netlify (SPA) |
 
-## 🔌 How Frontend & Backend Connect
+## 📦 Prerequisites
 
-```
-┌──────────────────────┐   /api/* (Vite proxy)   ┌──────────────────────────┐
-│  React SPA           │ ──────────────────────► │  Express API             │
-│  localhost:5173      │   dev: same-origin      │  localhost:4000          │
-│                      │   prod: VITE_API_URL    │                          │
-│  src/lib/api.ts ─────┼─────────────────────────┼──► MongoDB (mongoose)    │
-└──────────────────────┘   httpOnly JWT cookies   └──────────────────────────┘
-```
+- **Node.js 20+**
+- **MongoDB** — local (`docker run -p 27017:27017 mongo`) or [MongoDB Atlas](https://www.mongodb.com/atlas) (free tier)
+- **OpenAI API key** — [platform.openai.com/api-keys](https://platform.openai.com/api-keys)
+- **GitHub OAuth App** — [github.com/settings/developers](https://github.com/settings/developers) (optional, needed for repo fetching / GitHub sign-in)
 
-- **Development:** leave `VITE_API_URL` empty — the Vite dev server proxies
-  same-origin `/api/*` to `http://localhost:4000` (configurable via
-  `VITE_PROXY_TARGET`). No CORS headaches.
-- **Production:** set `VITE_API_URL=https://api.your-domain.com` in
-  `.env.production`, or serve both behind one domain and leave it empty.
-- Auth uses httpOnly JWT cookies, so the browser never touches tokens directly.
+## 🚀 Quick Start (Local)
 
-## 📦 Installation
-
-1. **Clone & install**
+### 1. Clone & install
 
 ```bash
-git clone <your-repo-url>
+git clone <your-repo-url> readmeai
 cd readmeai
-npm install                      # frontend deps
-cd server && npm install && cd .. # backend deps
+npm install          # frontend deps (root)
+cd server && npm install && cd ..   # backend deps
 ```
 
-2. **Start MongoDB** (pick one)
+### 2. Configure environment
 
 ```bash
-# Docker (recommended)
-docker run -d --name readmeai-mongo -p 27017:27017 -v readmeai-mongo-data:/data/db mongo:7
-
-# …or use a free MongoDB Atlas cluster and paste its URI into server/.env.local
-```
-
-3. **Configure environment** (all three variants are provided)
-
-| File | Purpose |
-|------|---------|
-| `server/.env.example` | Documents every backend variable |
-| `server/.env.local` | Local dev values (auto-loaded) |
-| `server/.env.production` | Production template (loaded when `NODE_ENV=production`) |
-| `.env.example` / `.env.local` / `.env.production` | Frontend (Vite) equivalents |
-
-```bash
-cp .env.example .env.local        # if you don't want the defaults
 cp server/.env.example server/.env.local
+cp .env.example .env.local   # frontend (optional in dev)
 ```
 
-Key backend variables (`server/.env.local`):
+Edit `server/.env.local`:
 
-| Variable | Description |
-|----------|-------------|
-| `PORT` | API port (default `4000`) |
-| `MONGO_URI` | `mongodb://localhost:27017/readmeai` or an Atlas SRV URI |
-| `JWT_SECRET` | Cookie-session signing secret — change in production |
-| `CLIENT_ORIGIN` | Allowed frontend origins for CORS |
-| `ADMIN_EMAIL` / `ADMIN_PASSWORD` | Bootstrap admin, auto-created on boot |
-| `GEMINI_API_KEY` | [Free key](https://makersuite.google.com/app/apikey) — without it, template fallback is used |
-| `GITHUB_CLIENT_ID` / `GITHUB_CLIENT_SECRET` | [OAuth App](https://github.com/settings/developers), callback `http://localhost:4000/api/github/callback` |
-| `GITHUB_TOKEN` | Optional PAT for analyzing public repos of users who haven't connected OAuth |
-
-4. **Seed mock data** (demo user, README history, chat, contributions, notifications, issues, plans)
-
-```bash
-cd server && npm run seed
+```env
+PORT=4000
+CLIENT_ORIGIN=http://localhost:5173,http://localhost:8080
+JWT_SECRET=run-openssl-rand-base64-48
+ADMIN_EMAIL=admin@readmeai.local
+ADMIN_PASSWORD=admin12345
+MONGO_URI=mongodb://localhost:27017/readmeai
+OPENAI_API_KEY=sk-...
+OPENAI_MODEL=gpt-4o-mini
+GITHUB_CLIENT_ID=...
+GITHUB_CLIENT_SECRET=...
+GITHUB_TOKEN=...            # optional: analyzes public repos without OAuth
 ```
 
-5. **Run both processes** (two terminals)
+### 3. (Optional) Seed demo data
 
 ```bash
-# Terminal 1 — API server (localhost:4000)
+cd server && npm run seed && cd ..
+```
+
+Creates `demo@readmeai.dev` / `demo123456` plus sample READMEs, chats, contributions.
+
+### 4. Run
+
+```bash
+# Terminal 1 — backend (http://localhost:4000)
 cd server && npm run dev
 
-# Terminal 2 — frontend (localhost:5173)
+# Terminal 2 — frontend (http://localhost:5173, proxies /api → :4000)
 npm run dev
 ```
 
-6. Open **http://localhost:5173** and sign in with the seeded demo account:
+### 5. GitHub OAuth App setup
+
+In your OAuth App settings:
+
+- **Homepage URL:** `http://localhost:5173`
+- **Authorization callback URL:** `http://localhost:4000/api/github/callback`
+
+## 📖 How to Use
+
+1. **Sign in** — email/password or **Continue with GitHub**
+2. **Connect GitHub** (if not signed in via GitHub) — Dashboard → *Connect GitHub*
+3. **Pick a repository** — browse your repos, search & filter by language
+4. **Generate** — AI reads your code and writes the README (30–60s)
+5. **Refine** — open the AI chat drawer and ask for changes ("add a badges section for React")
+6. **Export** — copy or download `README.md`
+
+## 🧩 Professional README Format
+
+Every generated README (AI **and** offline fallback) follows this exact structure:
 
 ```
-email:    demo@readmeai.dev
-password: demo123456
+# <emoji> Project Name
+<shields.io badges for the detected stack>
+> One-line tagline
+
+## 📋 About        — what & why (2-4 sentences)
+## ✨ Features     — emoji bullet list
+## 🛠️ Tech Stack   — languages, frameworks, tools
+## 📦 Installation — clone → install → env → run (bash blocks)
+## 🚀 Usage        — real command examples
+## ⚙️ Configuration — env-variable table
+## 📁 Project Structure — actual directory tree
+## 🤝 Contributing — fork/branch/PR steps
+## 📄 License      — MIT by default
+---
+Made with ❤️ by <author>
 ```
 
-Admin panel (`/admin-login`): `admin@readmeai.local` / `admin12345`
+## 🔌 API Overview
 
-## 🚀 Usage
+Base URL: `/api` (dev: proxied by Vite; prod: `VITE_API_URL`)
 
-1. **Sign up / sign in** — email + password, or **Continue with GitHub**
-2. **Connect GitHub** — Dashboard → *Connect GitHub* → authorize → your repos load automatically
-3. **Generate** — pick a repo (or enter details manually) → *Generate README*
-4. **Refine with AI Chat** — bot icon on the result, or the full **AI Chat** page
-5. **Export** — preview, copy, or download `README.md`
-
-### Generate from a repo via the API
-
-```bash
-curl -X POST http://localhost:4000/api/readmes/generate \
-  -H "Content-Type: application/json" \
-  -b cookies.txt \
-  -d '{"projectName":"express","repoFullName":"expressjs/express"}'
-```
-
-## 🍃 MongoDB Collections
-
-| Collection | Stores |
-|------------|--------|
-| `users` | accounts, profile, GitHub connection (encrypted token), admin flag |
-| `generatedreadmes` | every generated README + detected technologies + model used |
-| `chatmessages` | AI chat sessions (per user, per session) |
-| `contributions` | daily activity counts for the GitHub-style heatmap |
-| `notifications` | per-user announcements (admin broadcast supported) |
-| `userissues` | support/feedback tickets with status + priority |
-| `plans` | Free / Pro / Enterprise plan definitions |
+| Method | Endpoint | Description |
+|--------|----------|-------------|
+| `POST` | `/auth/register` · `/auth/login` · `/auth/logout` | Email/password auth (JWT cookie) |
+| `GET`  | `/auth/me` | Current session user |
+| `GET`  | `/github/status` | OAuth configured + connected? |
+| `GET`  | `/github/connect` → `/github/callback` | GitHub OAuth flow |
+| `GET`  | `/github/repos` | User's repositories (private + public) |
+| `POST` | `/github/disconnect` | Unlink GitHub |
+| `POST` | `/readmes/generate` | Analyze repo + generate README |
+| `GET`  | `/readmes` · `/readmes/:id` | README history |
+| `POST` | `/chat` | AI chat message (context-aware) |
+| `GET/DELETE` | `/chat/:sessionId` | Chat history / clear |
+| `GET/PUT` | `/user/profile` | Profile + contribution data |
+| `GET`  | `/user/notifications` · `/user/issues` · `/user/plans` · `/user/usage` | User resources |
+| `GET`  | `/admin/stats` · `/admin/users` · `/admin/readmes` · `/admin/issues` | Admin (role-guarded) |
+| `PATCH`| `/admin/issues/:id` | Update issue status |
+| `POST` | `/admin/notifications` | Broadcast notification |
+| `GET`  | `/health` | Health check |
 
 ## 📁 Project Structure
 
 ```
 readmeai/
-├── server/                      # Express backend
+├── server/                 # Express + MongoDB backend
 │   ├── src/
-│   │   ├── index.ts             # App entry: MongoDB connect, CORS, routers
-│   │   ├── db.ts                # mongoose connection
-│   │   ├── models.ts            # all Mongoose schemas
-│   │   ├── mock-data.ts         # demo data for the whole frontend
-│   │   ├── seed.ts              # npm run seed — loads mock data
-│   │   ├── auth.ts              # JWT sessions, bcrypt, admin bootstrap
-│   │   ├── ai.ts                # Gemini: README generation + chat + fallback
-│   │   ├── github.ts            # GitHub REST, OAuth, repo analysis
-│   │   ├── crypto.ts            # AES-256-GCM token encryption
-│   │   ├── validation.ts        # Zod request schemas
-│   │   └── routes/              # auth, github, readmes, chat, user, admin
-│   ├── .env.example/.local/.production
+│   │   ├── index.ts        # App bootstrap, CORS, rate limits, routes
+│   │   ├── env.ts          # .env loader (.env.local / .env.production)
+│   │   ├── db.ts           # Mongoose connection
+│   │   ├── models.ts       # User, Readme, Chat, Contribution, ... schemas
+│   │   ├── auth.ts         # JWT sessions, bcrypt, admin bootstrap, guards
+│   │   ├── ai.ts           # OpenAI service + format spec + fallback
+│   │   ├── github.ts       # GitHub REST + OAuth + repo analysis
+│   │   ├── crypto.ts       # AES-256-GCM token encryption
+│   │   ├── validation.ts   # Zod schemas
+│   │   ├── middleware.ts   # error handler, async wrapper
+│   │   └── routes/         # auth, github, readmes, chat, user, admin
+│   ├── .env.example        # env template
 │   └── package.json
-├── src/                         # React frontend
-│   ├── pages/                   # Index, Dashboard, Generate, Chat, Auth…
-│   ├── components/              # Navbar, RepoCard, PreviewModal, ui/
-│   ├── hooks/useAuth.tsx        # Session context
-│   └── lib/api.ts               # Typed API client (proxy-aware)
-├── .env.example/.local/.production   # frontend (Vite) env files
-└── vite.config.ts               # port 5173 + /api proxy
+├── src/                    # React SPA
+│   ├── pages/              # Index, Auth, AuthCallback, Dashboard, Generate,
+│   │                       # Chat, Profile, Settings, Admin, AdminLogin
+│   ├── components/         # Navbar, HeroSection, RepoCard, PreviewModal, ...
+│   ├── hooks/useAuth.tsx   # Session context
+│   └── lib/api.ts          # Typed API client (credentials: include)
+├── netlify.toml            # Netlify deploy config (frontend)
+├── render.yaml             # Render blueprint (backend)
+└── vite.config.ts          # Dev proxy /api → localhost:4000
 ```
 
-## 🔌 API Reference
+## 🚢 Deployment
 
-| Method | Endpoint | Description |
-|--------|----------|-------------|
-| POST | `/api/auth/register` | Create account |
-| POST | `/api/auth/login` | Sign in |
-| GET | `/api/auth/me` | Current session |
-| GET | `/api/github/connect` | Start GitHub OAuth |
-| GET | `/api/github/repos` | Fetch user's repositories |
-| POST | `/api/readmes/generate` | Generate README (with repo analysis) |
-| GET | `/api/readmes` | Generation history |
-| POST | `/api/chat` | Send message to AI assistant |
-| GET | `/api/chat/:sessionId` | Chat history |
-| GET | `/api/user/profile` | Profile + contributions |
-| GET | `/api/user/plans` | Available plans |
-| GET | `/api/admin/stats` | Platform statistics (admin) |
+### Backend → Render
 
-## 🚀 Production Deployment
+1. Push the repo to GitHub
+2. Render Dashboard → **New → Blueprint** → select the repo — `render.yaml` is auto-detected
+3. Fill in the `sync: false` env vars: `MONGO_URI` (Atlas URL), `CLIENT_ORIGIN` (your Netlify URL), `OPENAI_API_KEY`, `GITHUB_CLIENT_ID/SECRET`, `ADMIN_EMAIL/ADMIN_PASSWORD`
+4. Deploy — health check runs at `/api/health`
 
-```bash
-# Frontend — .env.production is baked in at build time
-npm run build            # outputs dist/
+### Frontend → Netlify
 
-# Backend
-cd server
-NODE_ENV=production npm start   # loads .env.production + connects MongoDB
-```
+1. Netlify → **Add new site → Import project** → select the repo — `netlify.toml` is auto-detected
+2. Add environment variable: `VITE_API_URL = https://<your-render-app>.onrender.com`
+3. Deploy — the SPA fallback (`/* → /index.html`) is pre-configured
+4. Back in Render, set `CLIENT_ORIGIN` to the Netlify URL (CORS + cookies)
 
-- Use **MongoDB Atlas** for a managed database.
-- Set `CLIENT_ORIGIN` to your frontend domain(s).
-- Use a strong `JWT_SECRET` (`openssl rand -base64 48`).
-- Put the API behind HTTPS so session cookies are sent `secure`.
+> **Tip:** For same-origin cookies on Netlify, uncomment the `/api/*` proxy redirect in `netlify.toml` and leave `VITE_API_URL` empty.
+>
+> **Note:** The backend build runs TypeScript on the server (`tsc`), so `typescript`, `tsx` and `@types/*` are intentionally listed in production `dependencies` — Render sets `NODE_ENV=production`, which would otherwise skip devDependencies and break the build.
+
+## 🔒 Security
+
+- ✅ JWT sessions in **httpOnly** cookies (7-day expiry)
+- ✅ Passwords hashed with **bcrypt** (cost 12)
+- ✅ GitHub tokens encrypted at rest (**AES-256-GCM**, key derived from `JWT_SECRET`)
+- ✅ Short-lived signed OAuth **state** validation (10 min)
+- ✅ **CORS allow-list** + credentials
+- ✅ **Rate limiting** (120 req/min global, 30 msgs/5min chat)
+- ✅ **Zod validation** on every mutating endpoint
+- ✅ Admin routes double-guarded (`requireAuth` + `requireAdmin`)
+
+## 🐛 Troubleshooting
+
+| Problem | Fix |
+|---------|-----|
+| Repos not loading | Connect GitHub on the Dashboard; check `GITHUB_CLIENT_ID/SECRET` and the callback URL |
+| READMEs say "template fallback" | `OPENAI_API_KEY` is missing/invalid on the server |
+| CORS errors after deploy | Set `CLIENT_ORIGIN` on Render to your exact Netlify URL (scheme included) |
+| Cookies not sent cross-origin | Use the Netlify `/api/*` proxy redirect, or ensure both `CLIENT_ORIGIN` and `VITE_API_URL` use HTTPS |
+| MongoDB connection refused | Verify `MONGO_URI`; Atlas requires allowing Render's outbound IPs (allow `0.0.0.0/0` or Render egress) |
+| Admin login fails | Set `ADMIN_EMAIL` + `ADMIN_PASSWORD` on the server and restart |
+
+## 🗺️ Roadmap
+
+- [ ] Streaming chat responses (SSE)
+- [ ] Multiple AI providers (Anthropic, Gemini) behind one interface
+- [ ] One-click "commit README to repo" via GitHub API
+- [ ] README templates/themes marketplace
+- [ ] Stripe billing for Pro plans
 
 ## 🤝 Contributing
 
@@ -228,7 +246,7 @@ NODE_ENV=production npm start   # loads .env.production + connects MongoDB
 
 ## 📄 License
 
-MIT License — see [LICENSE](LICENSE) for details.
+Distributed under the MIT License. See `LICENSE` for more information.
 
 ---
 

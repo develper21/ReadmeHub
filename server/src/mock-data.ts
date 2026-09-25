@@ -51,7 +51,7 @@ export const MOCK_READMES = (userId: string) => [
     repoFullName: "octocat/nebula-dashboard",
     repoUrl: "https://github.com/octocat/nebula-dashboard",
     technologies: ["React", "TypeScript", "Vite", "Tailwind CSS"],
-    model: "gemini-2.0-flash",
+    model: "gpt-4o-mini",
     createdAt: daysAgoDate(0),
     content: `# 🚀 Nebula Dashboard
 
@@ -99,7 +99,7 @@ snippy search react
     repoFullName: "octocat/pulse-api",
     repoUrl: "https://github.com/octocat/pulse-api",
     technologies: ["Express", "MongoDB", "Node.js"],
-    model: "gemini-2.0-flash",
+    model: "gpt-4o-mini",
     createdAt: daysAgoDate(3),
     content: `# 💓 Pulse API
 
@@ -168,7 +168,7 @@ export const MOCK_NOTIFICATIONS = (userId: string) => [
   {
     user: userId,
     title: "Pro tip 💡",
-    message: "Add your Gemini API key in server/.env to unlock full AI-powered generation.",
+    message: "Add your OpenAI API key in server/.env to unlock full AI-powered generation.",
     type: "success",
     read: false,
     createdAt: daysAgoDate(1),

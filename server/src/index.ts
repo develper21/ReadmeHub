@@ -62,7 +62,7 @@ async function main() {
   await ensureAdminUser();
   app.listen(PORT, () => {
     console.log(`[readmeai-api] listening on http://localhost:${PORT}`);
-    console.log(`[readmeai-api] AI: ${process.env.GEMINI_API_KEY ? "Gemini configured" : "template fallback (no key)"}`);
+    console.log(`[readmeai-api] AI: ${process.env.OPENAI_API_KEY ? "OpenAI configured" : "template fallback (no key)"}`);
     console.log(`[readmeai-api] GitHub OAuth: ${process.env.GITHUB_CLIENT_ID ? "configured" : "not configured"}`);
   });
 }

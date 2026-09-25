@@ -42,7 +42,7 @@ router.get(
   })
 );
 
-/** POST /api/readmes/generate — AI README generation (repo analysis + Gemini + fallback) */
+/** POST /api/readmes/generate — AI README generation (repo analysis + OpenAI + fallback) */
 router.post(
   "/generate",
   requireAuth,
