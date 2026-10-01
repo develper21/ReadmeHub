@@ -1,0 +1,1159 @@
+{
+  "info": {
+    "_postman_id": "b7e9c2a1-4f6d-4e3a-9c8b-2a1d5f7e9c01",
+    "name": "ReadMeAI API — Full Routes",
+    "description": "🚀 **ReadMeAI — AI README Generator**\n\nComplete Postman collection for testing **every** backend route of the ReadMeAI API (Node.js + Express + MongoDB + OpenAI).\n\n---\n\n### 🔑 How to use\n1. Start the API: `cd server && npm run dev` (port **4000**)\n2. (Optional) Seed demo data: `npm run seed`\n3. Run **Auth → Login (Demo User)** — the test script automatically saves the JWT into the `token` collection variable.\n4. All protected routes use `Authorization: Bearer {{token}}` (cookie `readmeai_token` also works automatically).\n5. For Admin routes, run **Auth → Login (Admin)** instead.\n\n### 📌 Variables\n| Variable | Purpose |\n| --- | --- |\n| `baseUrl` | API origin (default `http://localhost:4000`; set to `http://localhost:5173` to test through the Vite dev proxy) |\n| `token` | JWT saved automatically after Login / Register |\n| `readmeId` | Saved after **Generate README** |\n| `sessionId` | Chat session id (default `postman-session-1`) |\n| `notificationId` / `issueId` / `adminIssueId` | Saved automatically from list responses |\n\n> Demo creds → **demo@readmeai.dev / demo123456** · Admin creds → **admin@readmeai.local / admin12345**",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json",
+    "_exporter_id": "readmeai"
+  },
+  "auth": {
+    "type": "bearer",
+    "bearer": [
+      {
+        "key": "token",
+        "value": "{{token}}",
+        "type": "string"
+      }
+    ]
+  },
+  "variable": [
+    {
+      "key": "baseUrl",
+      "value": "http://localhost:4000",
+      "type": "string"
+    },
+    {
+      "key": "token",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "readmeId",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "sessionId",
+      "value": "postman-session-1",
+      "type": "string"
+    },
+    {
+      "key": "notificationId",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "issueId",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "adminIssueId",
+      "value": "",
+      "type": "string"
+    }
+  ],
+  "item": [
+    {
+      "name": "💚 Health",
+      "description": "Server health-check — verifies the API is up and MongoDB is configured.",
+      "item": [
+        {
+          "name": "Health Check",
+          "request": {
+            "auth": {
+              "type": "noauth"
+            },
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/health",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "health"
+              ]
+            },
+            "description": "**GET /api/health**\n\nReturns `{ ok, service, db, time }`. Use this to confirm the server is running."
+          },
+          "response": [],
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status is 200\", () => pm.response.code === 200);",
+                  "const body = pm.response.json();",
+                  "pm.test(\"Service is readmeai-api\", () => body.service === \"readmeai-api\");",
+                  "pm.test(\"DB is mongodb\", () => body.db === \"mongodb\");"
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "🔐 Auth",
+      "description": "JWT authentication. Login/Register set the httpOnly cookie `readmeai_token` (7 days) **and** the token can be sent as `Authorization: Bearer {{token}}` (saved automatically by the test scripts).",
+      "item": [
+        {
+          "name": "Register",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status is 201\", () => pm.response.code === 201);",
+                  "const cookie = pm.response.headers.get(\"set-cookie\") || \"\";",
+                  "const match = cookie.match(/readmeai_token=([^;]+)/);",
+                  "if (match) {",
+                  "  pm.collectionVariables.set(\"token\", match[1]);",
+                  "  console.log(\"✅ readmeai_token saved to collection variable 'token'\");",
+                  "}",
+                  "if (pm.response.code === 409) console.log(\"⚠️ Email already registered — use Login instead\");"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "auth": {
+              "type": "noauth"
+            },
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"newuser@readmeai.dev\",\n  \"password\": \"secret123\",\n  \"displayName\": \"New User\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/auth/register",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "auth",
+                "register"
+              ]
+            },
+            "description": "**POST /api/auth/register**\n\nBody (zod: `registerSchema`):\n- `email` (string, email) — required\n- `password` (string, min 6, max 128) — required\n- `displayName` (string, optional)\n\nReturns `201 { user }`. Duplicate email → `409`. The response also sets the session cookie (saved to `{{token}}` by the test script)."
+          },
+          "response": []
+        },
+        {
+          "name": "Login (Demo User)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status is 200\", () => pm.response.code === 200);",
+                  "const cookie = pm.response.headers.get(\"set-cookie\") || \"\";",
+                  "const match = cookie.match(/readmeai_token=([^;]+)/);",
+                  "if (match) {",
+                  "  pm.collectionVariables.set(\"token\", match[1]);",
+                  "  console.log(\"✅ Logged in as demo user — token saved\");",
+                  "}",
+                  "const body = pm.response.json();",
+                  "pm.test(\"User object returned\", () => body.user && body.user.email === \"demo@readmeai.dev\");"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "auth": {
+              "type": "noauth"
+            },
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"demo@readmeai.dev\",\n  \"password\": \"demo123456\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/auth/login",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "auth",
+                "login"
+              ]
+            },
+            "description": "**POST /api/auth/login**\n\nSeeded demo account (via `npm run seed`). Test script saves the JWT into `{{token}}` for all other requests.\n\nWrong credentials → `401 { error: \"Invalid email or password\" }`."
+          },
+          "response": []
+        },
+        {
+          "name": "Login (Admin)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status is 200\", () => pm.response.code === 200);",
+                  "const cookie = pm.response.headers.get(\"set-cookie\") || \"\";",
+                  "const match = cookie.match(/readmeai_token=([^;]+)/);",
+                  "if (match) {",
+                  "  pm.collectionVariables.set(\"token\", match[1]);",
+                  "  console.log(\"✅ Logged in as ADMIN — Admin folder is now unlocked\");",
+                  "}",
+                  "const body = pm.response.json();",
+                  "pm.test(\"User is admin\", () => body.user && body.user.isAdmin === true);"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "auth": {
+              "type": "noauth"
+            },
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"admin@readmeai.local\",\n  \"password\": \"admin12345\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/auth/login",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "auth",
+                "login"
+              ]
+            },
+            "description": "**POST /api/auth/login** (admin)\n\nBootstrap admin account (created from `ADMIN_EMAIL` / `ADMIN_PASSWORD` on server start). Run this before testing the **🛡 Admin** folder — non-admins get `403 Admin privileges required`."
+          },
+          "response": []
+        },
+        {
+          "name": "Me (Current User)",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/auth/me",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "auth",
+                "me"
+              ]
+            },
+            "description": "**GET /api/auth/me** 🔒\n\nReturns the signed-in user's public profile `{ user }`. No token → `401 Authentication required`."
+          },
+          "response": []
+        },
+        {
+          "name": "Logout",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status is 200\", () => pm.response.code === 200);",
+                  "pm.collectionVariables.set(\"token\", \"\");",
+                  "console.log(\"🧹 token collection variable cleared\");"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "auth": {
+              "type": "noauth"
+            },
+            "method": "POST",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/auth/logout",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "auth",
+                "logout"
+              ]
+            },
+            "description": "**POST /api/auth/logout**\n\nClears the `readmeai_token` cookie. Test script also clears the `{{token}}` collection variable."
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "🐙 GitHub",
+      "description": "GitHub OAuth connection + repository access. Tokens are stored AES-256-GCM encrypted. Requires the server env `GITHUB_CLIENT_ID` / `GITHUB_CLIENT_SECRET` for the OAuth flow.",
+      "item": [
+        {
+          "name": "Connection Status",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/github/status",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "github",
+                "status"
+              ]
+            },
+            "description": "**GET /api/github/status** 🔒\n\nReturns `{ configured, connected, username }`:\n- `configured` — OAuth app configured on the server\n- `connected` — current user has linked GitHub\n- `username` — linked GitHub login (or `null`)"
+          },
+          "response": []
+        },
+        {
+          "name": "Connect (Start OAuth)",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/github/connect",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "github",
+                "connect"
+              ]
+            },
+            "description": "**GET /api/github/connect** 🔒\n\nStarts the GitHub OAuth flow (scopes: `read:user user:email repo`).\n\n⚠️ **Postman tip:** turn OFF \"Automatically follow redirects\" for this request — it answers `302` with a `Location` header pointing to `https://github.com/login/oauth/authorize?...`. Best tested by opening the URL in a browser while signed in to the app.\n\nNot configured on server → `501`."
+          },
+          "response": []
+        },
+        {
+          "name": "OAuth Callback",
+          "request": {
+            "auth": {
+              "type": "noauth"
+            },
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/github/callback?code=REAL_CODE_FROM_GITHUB&state=REAL_STATE",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "github",
+                "callback"
+              ],
+              "query": [
+                {
+                  "key": "code",
+                  "value": "REAL_CODE_FROM_GITHUB",
+                  "description": "One-time code GitHub appended to the redirect URI"
+                },
+                {
+                  "key": "state",
+                  "value": "REAL_STATE",
+                  "description": "State issued by /connect (valid for 10 minutes)"
+                }
+              ]
+            },
+            "description": "**GET /api/github/callback**\n\nOAuth redirect target — GitHub calls this with `?code&state`. Cannot be replayed manually with fake values (invalid/missing state → redirect to `/auth/callback?github=error`).\n\nOn success it links (or signs in) the user, sets the session cookie and redirects to `CLIENT_ORIGIN/auth/callback?github=success`."
+          },
+          "response": []
+        },
+        {
+          "name": "List My Repos",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/github/repos",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "github",
+                "repos"
+              ]
+            },
+            "description": "**GET /api/github/repos** 🔒\n\nReturns `{ repos: [...], connected }` — private + public repos via the stored OAuth token, or public repos if only a username is linked.\n\nNot connected at all → `400 { error, code: \"GITHUB_NOT_CONNECTED\" }`.\n\nRepo objects: `id, name, fullName, description, htmlUrl, language, stargazersCount, forksCount, openIssuesCount, private, updatedAt` (sorted by last update)."
+          },
+          "response": []
+        },
+        {
+          "name": "Disconnect GitHub",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status is 200\", () => pm.response.code === 200);",
+                  "pm.test(\"ok is true\", () => pm.response.json().ok === true);"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/github/disconnect",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "github",
+                "disconnect"
+              ]
+            },
+            "description": "**POST /api/github/disconnect** 🔒\n\nRemoves the stored GitHub token + githubId for the current user. Returns `{ ok: true }`."
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "📄 Readmes",
+      "description": "AI-powered README generation and history. Generation uses **OpenAI (`gpt-4o-mini`)** when `OPENAI_API_KEY` is set, otherwise a professional template fallback (`model: \"template-fallback\"`).",
+      "item": [
+        {
+          "name": "List My READMEs",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/readmes",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "readmes"
+              ]
+            },
+            "description": "**GET /api/readmes** 🔒\n\nReturns the signed-in user's generation history `{ readmes: [...] }` (latest 100, newest first).\n\nEach item: `id, repoName, repoFullName, repoUrl, content, technologies, model, createdAt`."
+          },
+          "response": []
+        },
+        {
+          "name": "Generate README (AI)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status is 201\", () => pm.response.code === 201);",
+                  "const body = pm.response.json();",
+                  "if (body.id) {",
+                  "  pm.collectionVariables.set(\"readmeId\", body.id);",
+                  "  console.log(\"✅ readmeId saved:\", body.id);",
+                  "}",
+                  "console.log(\"model:\", body.model, \"| analyzed:\", body.analyzed, \"| tech:\", (body.technologies || []).join(\", \"));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"projectName\": \"my-awesome-app\",\n  \"description\": \"A task manager built with React and Node.js\",\n  \"techStack\": \"React, Node.js, MongoDB, TypeScript\",\n  \"repoFullName\": \"octocat/Hello-World\",\n  \"repoUrl\": \"https://github.com/octocat/Hello-World\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/readmes/generate",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "readmes",
+                "generate"
+              ]
+            },
+            "description": "**POST /api/readmes/generate** 🔒\n\nBody (zod: `generateSchema`):\n- `projectName` (string, required, max 120)\n- `description` (string, optional, max 2000)\n- `techStack` (comma-separated string, optional)\n- `repoFullName` (string, optional — `owner/repo`; enables GitHub repo analysis, needs GitHub connect or server `GITHUB_TOKEN`)\n- `repoUrl` (string, optional)\n\nReturns `201 { id, readme, model, technologies, analyzed }`. Test script saves `id` → `{{readmeId}}`.\n\nUnknown/inaccessible repo → `404`."
+          },
+          "response": []
+        },
+        {
+          "name": "Get README by ID",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/readmes/{{readmeId}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "readmes",
+                "{{readmeId}}"
+              ]
+            },
+            "description": "**GET /api/readmes/:id** 🔒\n\nReturns a single generated README `{ readme }` (owned by the current user). Missing/foreign id → `404 README not found`."
+          },
+          "response": []
+        },
+        {
+          "name": "Delete README",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status is 200\", () => pm.response.code === 200);",
+                  "pm.test(\"ok is true\", () => pm.response.json().ok === true);"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "DELETE",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/readmes/{{readmeId}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "readmes",
+                "{{readmeId}}"
+              ]
+            },
+            "description": "**DELETE /api/readmes/:id** 🔒\n\nDeletes one of the user's generated READMEs. Returns `{ ok: true }`, or `404` if not found."
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "💬 Chat",
+      "description": "AI chat assistant (README/doc help). Rate limited to **30 messages / 5 min** per user. Sessions are keyed by `sessionId` and stored in MongoDB.",
+      "item": [
+        {
+          "name": "Send Message",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status is 200\", () => pm.response.code === 200);",
+                  "const body = pm.response.json();",
+                  "console.log(\"🤖 AI:\", (body.reply || \"\").slice(0, 160));",
+                  "console.log(\"model:\", body.model);"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"sessionId\": \"{{sessionId}}\",\n  \"message\": \"What sections should a professional README have?\",\n  \"repoName\": \"my-awesome-app\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/chat",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "chat"
+              ]
+            },
+            "description": "**POST /api/chat** 🔒\n\nBody (zod: `chatSchema`):\n- `sessionId` (string, required, max 80) — any client-generated id\n- `message` (string, required, max 8000)\n- `repoName` (string, optional — adds the latest generated README for that repo as AI context)\n\nReturns `{ id, userMessageId, reply, model }`."
+          },
+          "response": []
+        },
+        {
+          "name": "Get Session History",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/chat/{{sessionId}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "chat",
+                "{{sessionId}}"
+              ]
+            },
+            "description": "**GET /api/chat/:sessionId** 🔒\n\nReturns the conversation `{ messages: [...] }` (oldest first, max 200). Each message: `id, role (user|assistant), content, repoName, createdAt`."
+          },
+          "response": []
+        },
+        {
+          "name": "Clear Session",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status is 200\", () => pm.response.code === 200);",
+                  "pm.test(\"ok is true\", () => pm.response.json().ok === true);"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "DELETE",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/chat/{{sessionId}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "chat",
+                "{{sessionId}}"
+              ]
+            },
+            "description": "**DELETE /api/chat/:sessionId** 🔒\n\nDeletes every message in the session. Returns `{ ok: true }`."
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "👤 User",
+      "description": "Signed-in user features: profile, contributions, notifications, support issues, plans and AI usage.",
+      "item": [
+        {
+          "name": "Get Profile",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/user/profile",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "user",
+                "profile"
+              ]
+            },
+            "description": "**GET /api/user/profile** 🔒\n\nReturns `{ profile: { displayName, avatarUrl, bio, githubUsername, createdAt, stats: { readmeCount, followers, following, publicRepos } }, contributions: [{ date, count }] }` (contributions feed the heatmap)."
+          },
+          "response": []
+        },
+        {
+          "name": "Update Profile",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status is 200\", () => pm.response.code === 200);",
+                  "pm.test(\"Profile returned\", () => Boolean(pm.response.json().profile));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "PUT",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"displayName\": \"Demo Developer\",\n  \"bio\": \"Full-stack developer exploring AI tooling. Loves clean docs.\",\n  \"githubUsername\": \"octocat\",\n  \"avatarUrl\": \"\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/user/profile",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "user",
+                "profile"
+              ]
+            },
+            "description": "**PUT /api/user/profile** 🔒\n\nBody (zod: `profileSchema`) — all fields optional: `displayName` (max 100), `bio` (max 500), `githubUsername` (max 100), `avatarUrl` (max 500).\n\nReturns `{ profile }` with the updated values."
+          },
+          "response": []
+        },
+        {
+          "name": "Get Notifications",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status is 200\", () => pm.response.code === 200);",
+                  "const first = (pm.response.json().notifications || [])[0];",
+                  "if (first) {",
+                  "  pm.collectionVariables.set(\"notificationId\", first.id);",
+                  "  console.log(\"✅ notificationId saved:\", first.id);",
+                  "}"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/user/notifications",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "user",
+                "notifications"
+              ]
+            },
+            "description": "**GET /api/user/notifications** 🔒\n\nReturns `{ notifications: [...] }` (latest 50). Each: `id, title, message, type (info|success|warning|error), read, created_at`. Test script saves the first id → `{{notificationId}}`."
+          },
+          "response": []
+        },
+        {
+          "name": "Mark Notification Read",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status is 200\", () => pm.response.code === 200);",
+                  "pm.test(\"ok is true\", () => pm.response.json().ok === true);"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "PATCH",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/user/notifications/{{notificationId}}/read",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "user",
+                "notifications",
+                "{{notificationId}}",
+                "read"
+              ]
+            },
+            "description": "**PATCH /api/user/notifications/:id/read** 🔒\n\nMarks one notification as read. Returns `{ ok: true }`. Run **Get Notifications** first so `{{notificationId}}` is filled."
+          },
+          "response": []
+        },
+        {
+          "name": "List My Issues",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status is 200\", () => pm.response.code === 200);",
+                  "const first = (pm.response.json().issues || [])[0];",
+                  "if (first) {",
+                  "  pm.collectionVariables.set(\"issueId\", first.id);",
+                  "  console.log(\"✅ issueId saved:\", first.id);",
+                  "}"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/user/issues",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "user",
+                "issues"
+              ]
+            },
+            "description": "**GET /api/user/issues** 🔒\n\nReturns the user's support/feedback issues `{ issues: [...] }`. Each: `id, title, description, status (open|in_progress|resolved), priority, created_at, updated_at`."
+          },
+          "response": []
+        },
+        {
+          "name": "Create Issue",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status is 201\", () => pm.response.code === 201);",
+                  "const body = pm.response.json();",
+                  "if (body.issue && body.issue.id) {",
+                  "  pm.collectionVariables.set(\"issueId\", body.issue.id);",
+                  "  console.log(\"✅ issueId saved:\", body.issue.id);",
+                  "}"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"title\": \"Export to PDF not working\",\n  \"description\": \"Clicking Export PDF on the preview page does nothing.\",\n  \"priority\": \"high\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/user/issues",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "user",
+                "issues"
+              ]
+            },
+            "description": "**POST /api/user/issues** 🔒\n\nBody (zod: `issueSchema`):\n- `title` (required, max 150)\n- `description` (optional, max 2000)\n- `priority` (`low` | `medium` | `high`, default `medium`)\n\nReturns `201 { issue }`."
+          },
+          "response": []
+        },
+        {
+          "name": "Get Plans",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/user/plans",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "user",
+                "plans"
+              ]
+            },
+            "description": "**GET /api/user/plans** 🔒\n\nReturns active pricing plans `{ plans: [...] }`: `id, name, description, priceMonthly, maxReadmesPerMonth (-1 = unlimited), features`."
+          },
+          "response": []
+        },
+        {
+          "name": "Get AI Usage",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/user/usage",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "user",
+                "usage"
+              ]
+            },
+            "description": "**GET /api/user/usage** 🔒\n\nReturns `{ usage: { plan, readmeThisMonth, limit } }` — READMEs generated this calendar month vs. plan limit (Free = 5/month)."
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "🛡 Admin",
+      "description": "Admin-only endpoints (`requireAuth` + `requireAdmin`). ⚠️ Run **Auth → Login (Admin)** first — regular users get `403 Admin privileges required`.",
+      "item": [
+        {
+          "name": "Platform Stats",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/admin/stats",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "admin",
+                "stats"
+              ]
+            },
+            "description": "**GET /api/admin/stats** 🛡\n\nReturns `{ stats: { users, readmes, openIssues, activePlans, chats } }` for the admin dashboard."
+          },
+          "response": []
+        },
+        {
+          "name": "List Users",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/admin/users",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "admin",
+                "users"
+              ]
+            },
+            "description": "**GET /api/admin/users** 🛡\n\nReturns all users `{ users: [...] }`: `id, email, displayName, githubUsername, isAdmin, createdAt` (newest first)."
+          },
+          "response": []
+        },
+        {
+          "name": "List All READMEs",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/admin/readmes",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "admin",
+                "readmes"
+              ]
+            },
+            "description": "**GET /api/admin/readmes** 🛡\n\nReturns the latest 100 generated READMEs across all users `{ readmes: [...] }`: `id, repo_name, repo_full_name, technologies, model, created_at, email`."
+          },
+          "response": []
+        },
+        {
+          "name": "List All Issues",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status is 200\", () => pm.response.code === 200);",
+                  "const first = (pm.response.json().issues || [])[0];",
+                  "if (first) {",
+                  "  pm.collectionVariables.set(\"adminIssueId\", first.id);",
+                  "  console.log(\"✅ adminIssueId saved:\", first.id);",
+                  "}"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/admin/issues",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "admin",
+                "issues"
+              ]
+            },
+            "description": "**GET /api/admin/issues** 🛡\n\nReturns all support issues with the reporter's email: `id, title, description, status, priority, created_at, updated_at, email`. Test script saves the first id → `{{adminIssueId}}`."
+          },
+          "response": []
+        },
+        {
+          "name": "Update Issue Status",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status is 200\", () => pm.response.code === 200);",
+                  "pm.test(\"ok is true\", () => pm.response.json().ok === true);"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "PATCH",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"status\": \"in_progress\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/admin/issues/{{adminIssueId}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "admin",
+                "issues",
+                "{{adminIssueId}}"
+              ]
+            },
+            "description": "**PATCH /api/admin/issues/:id** 🛡\n\nBody (zod: `issueStatusSchema`): `status` = `open` | `in_progress` | `resolved`.\n\nReturns `{ ok: true }`, or `404 Issue not found`."
+          },
+          "response": []
+        },
+        {
+          "name": "Send Notification",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status is 201\", () => pm.response.code === 201);",
+                  "const body = pm.response.json();",
+                  "console.log(\"📣 notifications sent:\", body.sent);"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"userId\": \"\",\n  \"title\": \"Scheduled maintenance\",\n  \"message\": \"The API will be briefly unavailable on Sunday 2AM IST.\",\n  \"type\": \"warning\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/admin/notifications",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "admin",
+                "notifications"
+              ]
+            },
+            "description": "**POST /api/admin/notifications** 🛡\n\nBody (zod: `notificationSchema`):\n- `userId` (optional — empty = **broadcast to all users**)\n- `title` (required, max 150)\n- `message` (required, max 2000)\n- `type` (`info` | `success` | `warning` | `error`, default `info`)\n\nReturns `201 { sent: <count> }`."
+          },
+          "response": []
+        }
+      ]
+    }
+  ]
+}
