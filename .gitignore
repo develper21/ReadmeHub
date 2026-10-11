@@ -30,3 +30,6 @@ dist-ssr
 server/.env
 server/.env.local
 server/.env.production
+.freebuff
+.vscode
+.cursor
